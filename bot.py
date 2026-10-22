@@ -1,10 +1,23 @@
 import json, os
 from datetime import datetime
+from threading import Thread
+from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 
 TOKEN = "8756210620:AAFTqulxKyeaHgpZzNiyubzMq6Uq6Q7WTkk"
 ADMIN_ID = 6552154689
+
+# وب سرور ساده برای زنده نگه داشتن سرویس در Render
+app_web = Flask(__name__)
+
+@app_web.route('/')
+def home():
+    return "Bot is running!"
+
+def run_web():
+    port = int(os.environ.get("PORT", 10000))
+    app_web.run(host="0.0.0.0", port=port)
 
 def load(f, d=None):
     if d is None: d = {}
@@ -325,6 +338,9 @@ async def msg(update, ctx):
         if not await is_member(u.id, ctx): await force_join(update, ctx)
 
 def main():
+    # اجرای وب سرور در یک ترد جدا
+    Thread(target=run_web).start()
+
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(check, pattern="^check$"))
