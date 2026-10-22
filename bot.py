@@ -1,10 +1,22 @@
 import json, os
 from datetime import datetime
+from threading import Thread
+from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 
 TOKEN = "8756210620:AAFTqulxKyeaHgpZzNiyubzMq6Uq6Q7WTkk"
-ADMIN_ID = 6552154689
+ADMIN_ID = 8873931219
+
+app_web = Flask(__name__)
+
+@app_web.route('/')
+def home():
+    return "Bot is running!"
+
+def run_web():
+    port = int(os.environ.get("PORT", 10000))
+    app_web.run(host="0.0.0.0", port=port)
 
 def load(f, d=None):
     if d is None: d = {}
@@ -179,9 +191,11 @@ async def admin(update, ctx):
     if update.effective_user.id != ADMIN_ID: return
     btns = [
         [InlineKeyboardButton("📢 مدیریت چنل‌ها", callback_data="a_ch")],
+        [InlineKeyboardButton("✏️ تغییر متن‌ها", callback_data="a_txt")],
         [InlineKeyboardButton("⭐ امتیاز زیرمجموعه", callback_data="a_pt")],
         [InlineKeyboardButton("🔘 فعال/غیرفعال دکمه‌ها", callback_data="a_tg")],
         [InlineKeyboardButton("📊 آمار ربات", callback_data="a_st")],
+        [InlineKeyboardButton("📨 پیام همگانی", callback_data="a_bc")],
     ]
     await update.message.reply_text("⚙️ پنل مدیریت ربات", reply_markup=InlineKeyboardMarkup(btns))
 
@@ -196,7 +210,19 @@ async def admin_cb(update, ctx):
         t = "📢 چنل‌ها:\n\n"
         for i, ch in enumerate(channels(), 1): t += f"{i}. {ch['title']}\n"
         t += "\n/addchannel آیدی لینک عنوان\n/removechannel شماره"
-        await q.message.edit_text(t)
+        await q.message.edit_text(t, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("بازگشت", callback_data="a_back")]]))
+    elif d == "a_txt":
+        btns = [
+            [InlineKeyboardButton("خوش‌آمد", callback_data="e_welcome")],
+            [InlineKeyboardButton("جوین اجباری", callback_data="e_force_join")],
+            [InlineKeyboardButton("زیرمجموعه", callback_data="e_referral")],
+            [InlineKeyboardButton("برداشت", callback_data="e_withdraw")],
+            [InlineKeyboardButton("پشتیبانی", callback_data="e_support")],
+            [InlineKeyboardButton("اسپانسر", callback_data="e_sponsor")],
+            [InlineKeyboardButton("حساب کاربری", callback_data="e_account")],
+            [InlineKeyboardButton("بازگشت", callback_data="a_back")],
+        ]
+        await q.message.edit_text("کدام متن را تغییر دهیم؟", reply_markup=InlineKeyboardMarkup(btns))
     elif d == "a_pt":
         ctx.user_data["waiting_edit"] = "points_per_ref"
         await q.message.edit_text(f"امتیاز فعلی هر زیرمجموعه: {c['points_per_ref']}\nعدد جدید را بفرستید:")
@@ -207,6 +233,7 @@ async def admin_cb(update, ctx):
             [InlineKeyboardButton(f"{'✅' if c['enable_acc'] else '❌'} حساب", callback_data="t_acc")],
             [InlineKeyboardButton(f"{'✅' if c['enable_sup'] else '❌'} پشتیبانی", callback_data="t_sup")],
             [InlineKeyboardButton(f"{'✅' if c['enable_sp'] else '❌'} اسپانسر", callback_data="t_sp")],
+            [InlineKeyboardButton("بازگشت", callback_data="a_back")],
         ]
         await q.message.edit_text("وضعیت دکمه‌ها:", reply_markup=InlineKeyboardMarkup(btns))
     elif d.startswith("t_"):
@@ -219,12 +246,30 @@ async def admin_cb(update, ctx):
             [InlineKeyboardButton(f"{'✅' if c['enable_acc'] else '❌'} حساب", callback_data="t_acc")],
             [InlineKeyboardButton(f"{'✅' if c['enable_sup'] else '❌'} پشتیبانی", callback_data="t_sup")],
             [InlineKeyboardButton(f"{'✅' if c['enable_sp'] else '❌'} اسپانسر", callback_data="t_sp")],
+            [InlineKeyboardButton("بازگشت", callback_data="a_back")],
         ]
         await q.message.edit_text("وضعیت دکمه‌ها:", reply_markup=InlineKeyboardMarkup(btns))
     elif d == "a_st":
         u = users()
         t = f"📊 آمار\n\nکاربران: {len(u)}\nامتیاز کل: {sum(x.get('points',0) for x in u.values())}\nزیرمجموعه: {sum(x.get('refs',0) for x in u.values())}"
-        await q.message.edit_text(t)
+        await q.message.edit_text(t, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("بازگشت", callback_data="a_back")]]))
+    elif d == "a_bc":
+        ctx.user_data["waiting_bc"] = True
+        await q.message.edit_text("پیام همگانی را بنویسید:")
+    elif d == "a_back":
+        btns = [
+            [InlineKeyboardButton("📢 مدیریت چنل‌ها", callback_data="a_ch")],
+            [InlineKeyboardButton("✏️ تغییر متن‌ها", callback_data="a_txt")],
+            [InlineKeyboardButton("⭐ امتیاز زیرمجموعه", callback_data="a_pt")],
+            [InlineKeyboardButton("🔘 فعال/غیرفعال دکمه‌ها", callback_data="a_tg")],
+            [InlineKeyboardButton("📊 آمار ربات", callback_data="a_st")],
+            [InlineKeyboardButton("📨 پیام همگانی", callback_data="a_bc")],
+        ]
+        await q.message.edit_text("⚙️ پنل مدیریت ربات", reply_markup=InlineKeyboardMarkup(btns))
+    elif d.startswith("e_"):
+        key = d[2:]
+        ctx.user_data["waiting_edit"] = key
+        await q.message.edit_text(f"متن فعلی:\n{c.get(key,'')}\n\nمتن جدید را بفرستید:")
 
 async def add_ch(update, ctx):
     if update.effective_user.id != ADMIN_ID: return
@@ -286,13 +331,30 @@ async def msg(update, ctx):
     if ctx.user_data.get("waiting_edit"):
         key = ctx.user_data.pop("waiting_edit")
         conf = cfg()
-        try:
-            conf[key] = int(t)
-            save_cfg(conf)
-            await update.message.reply_text("✅ ذخیره شد.", reply_markup=kb(ADMIN_ID))
-        except:
-            await update.message.reply_text("عدد وارد کنید.")
-            ctx.user_data["waiting_edit"] = key
+        if key == "points_per_ref":
+            try:
+                conf[key] = int(t)
+            except:
+                await update.message.reply_text("عدد وارد کنید.")
+                ctx.user_data["waiting_edit"] = key
+                return
+        else:
+            conf[key] = t
+        save_cfg(conf)
+        await update.message.reply_text("✅ ذخیره شد.", reply_markup=kb(ADMIN_ID))
+        return
+
+    if ctx.user_data.get("waiting_bc"):
+        ctx.user_data.pop("waiting_bc", None)
+        us = users()
+        ok = fail = 0
+        for uid in us:
+            try:
+                await ctx.bot.send_message(int(uid), t)
+                ok += 1
+            except:
+                fail += 1
+        await update.message.reply_text(f"✅ تمام شد\nموفق: {ok}\nناموفق: {fail}", reply_markup=kb(ADMIN_ID))
         return
 
     if t == "⭐ ۱ استارز":
@@ -325,12 +387,13 @@ async def msg(update, ctx):
         if not await is_member(u.id, ctx): await force_join(update, ctx)
 
 def main():
+    Thread(target=run_web).start()
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(check, pattern="^check$"))
     app.add_handler(CallbackQueryHandler(reply_cb, pattern="^r_"))
     app.add_handler(CallbackQueryHandler(back, pattern="^back$"))
-    app.add_handler(CallbackQueryHandler(admin_cb, pattern="^a_|^t_"))
+    app.add_handler(CallbackQueryHandler(admin_cb, pattern="^a_|^t_|^e_"))
     app.add_handler(CommandHandler("addchannel", add_ch))
     app.add_handler(CommandHandler("removechannel", rem_ch))
     app.add_handler(MessageHandler(filters.TEXT, msg))
